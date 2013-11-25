@@ -1,0 +1,185 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<title>IS 218 - Final Project</title>
+</head>
+<body>
+
+<?php
+	$program = new program;
+
+	class program {
+		public function __construct() {
+			$page = 'home';
+
+			if(isset($_REQUEST['page'])) {
+				$page = $_REQUEST['page'];
+			}
+
+			if(isset($_REQUEST['arg'])) {
+				$arg = $_REQUEST['arg'];
+			}
+
+			$page = new $page($arg);
+		}
+	}
+
+	abstract class page {
+		public $content;
+		public $con;
+
+		function __construct($arg = NULL) {
+			if($_SERVER['REQUEST_METHOD'] == 'GET') {
+				$this->get();
+			} else {
+				$this->post();
+			}
+		}
+
+		public function dbConnect() {
+			// Account info
+			include "account.php";
+
+			// Create connection
+			$this->con=mysqli_connect($hostname,$username,$password,$database);
+			
+			// Check connection
+			if (mysqli_connect_errno($this->con)) {
+				echo "Failed to connect to MySQL: " . mysqli_connect_error() . "<br>";
+			} else {
+				echo "Successfully connected to MySQL<br>";
+			}
+		}
+
+		function post() {
+			print_r($_POST);
+		}
+
+		function __destruct() {
+			echo $this->content;
+		}
+	}
+
+	class home extends page {
+		function get() {
+			//Import the test file
+			$test = new test_file();
+			$test->file_name = 'test.csv';
+			$test->fileToArray();
+			$this->dbConnect();
+			$test->buildFields();
+			//$test->createTable($this->con, "country_table");
+			//$test->insertValues($this->con, "country_table");
+		}
+	}
+
+	class file {
+		public $file_name;
+		public $file_array;
+		protected $row_length;
+		protected $row_count;
+		protected $table_fields;
+
+		// Converts the CSV file into an array
+		public function fileToArray() {
+			$row = 0;
+			//echo $this->file_name;
+			if (($handle = fopen($this->file_name, "r")) !== FALSE) {
+				while (($data = fgetcsv($handle, 10, ",")) !== FALSE) {
+					$num = count($data);
+					if ($row == 0) {
+						$this->row_length = count($data);
+						//echo $this->row_length;
+					}
+					//echo "<p> $num fields in line $row: <br /></p>\n";
+					
+					for ($col=0; $col<$num; $col++) {
+						$result[$row][$col] = $data[$col];
+						//echo $data[$col] . " = " . $result[$row][$col] . "<br />\n";
+					}
+
+					$row++;
+				}
+			
+				fclose($handle);
+			}
+
+			$this->row_count = $row;
+			$this->file_array = $result;
+		}
+
+		public function displayArray() {
+			for ($x=0; $x < $this->row_length; $x++) {
+				for ($y=0; $y < $this->row_length; $y++) {
+					echo $this->file_array[$x][$y] . "<br>";
+				}
+
+				echo "<br>";
+			}
+		}
+
+		public function selectTest($con) {
+			$result = mysqli_query($con,"SELECT * FROM eldritch_abominations");
+
+			while($row = mysqli_fetch_array($result)) {
+				echo $row['name'] . "<br>";
+			}
+		}
+	}
+
+	class test_file extends file {
+		public function buildFields() {
+			$this->table_fields = array("id", "name", "formal_name", "capital");
+		}
+
+		public function createTable($con, $table_name) {
+			// Build table
+			$sql = "CREATE TABLE " . $table_name . " (";
+
+			$sql .= $this->table_fields[0] . " int(3),";
+			$sql .= $this->table_fields[1] . " varchar(255),";
+			$sql .= $this->table_fields[2] . " varchar(255),";
+			$sql .= $this->table_fields[3] . " varchar(255)";
+
+			$sql .= ");";
+			
+			if (mysqli_query($con,$sql)) {
+				echo "Table " . $table_name . " created successfully";
+			} else {
+				echo "Error creating table: " . mysqli_error($con);
+			}
+		}
+
+		public function insertValues($con, $table_name) {
+			for($i=0; $i < $this->row_count-1; $i++) {
+				$sql = "INSERT INTO " . $table_name . " (";
+				
+				$sql .= $this->table_fields[0] . ", ";
+				$sql .= $this->table_fields[1] . ", ";
+				$sql .= $this->table_fields[2] . ", ";
+				$sql .= $this->table_fields[3] . " ";
+				
+				$sql .= ") VALUES (";
+				$sql .= $this->file_array[$i+1][0] . ", ";
+				$sql .= "'" . $this->file_array[$i+1][1] . "', ";
+				$sql .= "'" . $this->file_array[$i+1][2] . "', ";
+				$sql .= "'" . $this->file_array[$i+1][6] . "'";
+
+				$sql .= ")";
+
+				//echo $sql;
+				//echo "<br>";
+				
+				if (mysqli_query($con,$sql)) {
+					echo "Successfully inserted values into " . $table_name . "<br>";
+				} else {
+					echo "Error inserting values: " . mysqli_error($con) . "<br>";
+				}
+			}
+		}
+	}
+
+?>
+
+</body>
+</html>
